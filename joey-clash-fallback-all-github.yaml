@@ -1,0 +1,463 @@
+# ========================
+# Clash-ALL 优化配置
+# ========================
+# 更新时间：20251105
+# 配置来源：https://github.com/liandu2024/little/blob/main/yaml/clash-fallback-all.yaml
+# 机场节点订阅
+
+proxy-providers:
+
+  鲸鱼:
+    url: "https://submit.mylac.cn:21443/api/v1/client/subscribe?token=9859edd1bfcbd1f2a89fb43b1650925b"
+    type: http
+    interval: 21600  # 默认24小时_86400，改为21600即6小时更新一次
+    health-check:
+      enable: true
+      url: https://www.gstatic.com/generate_204
+      interval: 300
+    proxy: 直连
+
+  鲤鱼:
+    url: "https://Lwcs1.subxly.cfd:8443/api/v1/client/085e30419af19bcabcf6cc20bc89b033?flag=clashmeta"
+    type: http
+    interval: 21600  # 默认24小时_86400，改为21600即6小时更新一次
+    health-check:
+      enable: true
+      url: https://www.gstatic.com/generate_204
+      interval: 300
+    proxy: 直连
+
+proxies:
+  - {name: 直连, type: direct}
+  - {name: 拒绝, type: reject}
+
+# ========================
+# 主要端口设置
+# ========================
+port: 7890
+socks-port: 7891
+redir-port: 7892
+mixed-port: 7893
+tproxy-port: 7895
+
+allow-lan: true
+mode: rule
+log-level: info
+
+external-controller: 0.0.0.0:9090
+# external-ui: ui
+# external-ui-name: zashboard
+# external-ui-url: https://gh-proxy.com/github.com/Zephyruso/zashboard/archive/refs/heads/gh-pages.zip
+secret: "123456"
+
+# ========================
+# DNS 设置
+# ========================
+dns:
+  enable: true
+  listen: 0.0.0.0:7874      # 自定义监听端口，需要确保 dnsmasq 指向这里
+  ipv6: false               # 关闭 IPv6 获得最大稳定
+  enhanced-mode: fake-ip    # 使用 Fake-IP 增强模式
+  fake-ip-range: 198.20.0.1/16      # Fake-IP 挑选假IP范围
+  nameserver:
+  # default-nameserver、proxy-server-nameserver、Fallback都不需要设置
+  # 用于解析<国内>域名和Fake-IP
+  # 使用运营商 DNS，是国内访问速度和稳定性最好的选择，比阿里、腾讯等公共DNS更佳
+    - 120.196.165.24
+    - 211.136.192.6
+  fake-ip-filter-mode: blacklist      # Fake-IP 过滤模式：黑名单
+  fake-ip-filter:
+
+  # 常见国内域名，避免因 Fake-IP 导致无法访问
+    - +.lan
+    - +.local
+    - geosite:cn
+    - "time.*.com"
+    - "+.msftncsi.com"
+    - "+.msftconnecttest.com"
+#部分常见机场域名，防止被Fake-IP影响连接：
+# 快猫
+    - +.km688.ink
+# 火烧
+    - +.onesubv.site
+    - +.oneyyds.online
+    - +.fengyyds.site
+    - +.onemg.top    
+# 猫耳
+    - +.chybinc.com
+# BestVPN
+    - +.invitevp.com
+    - +.vp2.us
+# 小牛
+    - +.xiaoniuyun.cc  
+# 硅谷
+    - +.apple-bing.sbs  
+# 无界
+    - +.bncrcloud.com
+# 冰云
+    - +.xby01.xyz
+# 牛逼   
+    - +.idsduf.com  
+    - +.66jc.top
+# 极速通        
+    - +.gfw.gg
+# 萌狗       
+    - +.moedog.cloud
+# 其他     
+    - +.ynhtbank.com
+    - +.qeayr.cn
+    - +.saojc.xyz   
+    - +.sssyun.xyz
+    - +.dler.cloud
+    - +.0tk8a3a1q4t94dler.com    
+    - +.aerianas.top
+    - +.gptacg.top
+    - +.wxda.net
+
+ipv6: false
+
+# ========================
+# TUN 模块
+# ========================
+tun:
+  enable: true
+  stack: gvisor
+  device: utun
+  endpoint-independent-nat: true
+  auto-route: false
+  auto-detect-interface: false
+  auto-redirect: false
+  strict-route: false
+
+profile:
+  store-selected: true
+  store-fake-ip: true
+
+# ====================================================================
+# YAML 策略组锚点定义
+# 在这里定义你需要重复使用的字符串，特别是长正则表达式
+# ====================================================================
+default: &default
+  type: select
+  proxies:
+    - 直连
+    - 所有-手动
+    - 所有-自动
+    - 香港-故转
+    - 台湾-故转
+    - 日本-故转
+    - 新加坡-故转
+    - 韩国-故转
+    - 美加-故转
+    - 欧洲-故转
+    - 其他地区-故转
+    - 拒绝
+# 将"英国-故转"替换为了"欧洲-故转"
+
+# ====================================================================
+# YAML 过滤器锚点定义 (Filter Anchors)
+# 在这里定义正则表达式的组件，方便组合和复用
+# ====================================================================
+# --- 关键词组件 ---
+
+# 1. 非欧洲的主要代理区域关键词
+non_european_keywords: &NON_EUROPEAN_KEYWORDS >-
+  广港|香港|HK|Hong Kong|🇭🇰|HongKong|
+  广台|台湾|台灣|TW|Tai Wan|🇹🇼|TaiWan|Taiwan|
+  广日|日本|JP|川日|东京|大阪|泉日|埼玉|沪日|深日|🇯🇵|Japan|
+  广新|新加坡|SG|坡|狮城|🇸🇬|Singapore|
+  广韩|韩国|韓國|KR|首尔|春川|🇰🇷|Korea|
+  广美|US|美国|🇺🇸|United States|
+  美洲|纽约|波特兰|达拉斯|俄勒冈|凤凰城|费利蒙|洛杉矶|圣何塞|圣克拉拉|西雅图|芝加哥|
+  加拿大|CA|Canada|🇨🇦|温哥华|多伦多|蒙特利尔
+
+# 2. 欧洲区域关键词 (已细化和补充)
+european_keywords: &EUROPEAN_KEYWORDS >-
+  欧洲|EU|
+  德国|DE|Germany|法兰克福|Frankfurt|柏林|Berlin|
+  法国|FR|France|巴黎|Paris|
+  英国|UK|United Kingdom|伦敦|London|英|🇬🇧|
+  意大利|IT|Italy|罗马|Rome|米兰|Milan|
+  西班牙|ES|Spain|马德里|Madrid|巴塞罗那|Barcelona|
+  荷兰|NL|Netherlands|阿姆斯特丹|Amsterdam|
+  瑞士|CH|Switzerland|苏黎世|Zurich|日内瓦|Geneva|
+  奥地利|AT|Austria|维也纳|Vienna|
+  比利时|BE|Belgium|布鲁塞尔|Brussels|
+  瑞典|SE|Sweden|斯德哥尔摩|Stockholm|
+  挪威|NO|Norway|奥斯陆|Oslo|
+  芬兰|FI|Finland|赫尔辛基|Helsinki|
+  丹麦|DK|Denmark|哥本哈根|Copenhagen|
+  波兰|PL|Poland|华沙|Warsaw|
+  爱尔兰|IE|Ireland|都柏林|Dublin|
+  葡萄牙|PT|Portugal|里斯本|Lisbon|
+  希腊|GR|Greece|雅典|Athens|
+  俄罗斯|RU|Russia|莫斯科|Moscow|圣彼得堡|St. Petersburg|
+  土耳其|TR|Turkey|Türkiye|伊斯坦布尔|Istanbul|🇹🇷|
+  乌克兰|UA|Ukraine|基辅|Kyiv|
+  捷克|CZ|Czechia|布拉格|Prague|
+  匈牙利|HU|Hungary|布达佩斯|Budapest|
+  罗马尼亚|RO|Romania|布加勒斯特|Bucharest|
+  保加利亚|BG|Bulgaria|
+  塞尔维亚|RS|Serbia|
+  克罗地亚|HR|Croatia|
+  波黑|BA|Bosnia|
+  斯洛伐克|SK|Slovakia|
+  斯洛文尼亚|SI|Slovenia|
+  立陶宛|LT|Lithuania|
+  拉脱维亚|LV|Latvia|
+  爱沙尼亚|EE|Estonia|
+  冰岛|IS|Iceland|
+  卢森堡|LU|Luxembourg|
+  马耳他|MT|Malta|
+  塞浦路斯|CY|Cyprus|
+  阿尔巴尼亚|AL|Albania|
+  白俄罗斯|BY|Belarus|
+  摩尔多瓦|MD|Moldova|
+  北马其顿|MK|North Macedonia|
+  黑山|ME|Montenegro|
+  科索沃|XK|Kosovo|
+  安道尔|AD|Andorra|
+  列支敦士登|LI|Liechtenstein|
+  摩纳哥|MC|Monaco|
+  圣马力诺|SM|San Marino|
+  梵蒂冈|VA|Vatican|
+  🇦🇱|🇦🇩|🇦🇹|🇧🇾|🇧🇪|🇧🇦|🇧🇬|🇭🇷|🇨🇾|🇨🇿|🇩🇰|🇪🇪|🇫🇮|🇫🇷|🇩🇪|🇬🇷|🇭🇺|🇮🇸|🇮🇪|🇮🇹|🇽🇰|🇱🇻|🇱🇮|🇱🇹|🇱🇺|🇲🇹|🇲🇩|🇲🇨|🇲🇪|🇳🇱|🇲🇰|🇳🇴|🇵🇱|🇵🇹|🇷🇴|🇷🇺|🇸🇲|🇷🇸|🇸🇰|🇸🇮|🇪🇸|🇸🇪|🇨🇭|🇺🇦|🇬🇧|🇻🇦
+
+# 3. 需要从所有分组中排除的元信息/通用关键词
+meta_keywords: &META_KEYWORDS >-
+  直连|拒绝|流量|到期|重置|剩余|时间|官网|订阅
+
+# --- 最终过滤器 ---
+
+# 欧洲组过滤器: 必须包含欧洲关键词，且不能包含其他主要区域和元信息关键词
+filter_for_europe: &FILTER_FOR_EUROPE >-
+  (?i)^(?!.*(广港|香港|HK|Hong Kong|🇭🇰|HongKong|广台|台湾|台灣|TW|Tai Wan|🇹🇼|TaiWan|Taiwan|广日|日本|JP|川日|东京|大阪|泉日|埼玉|沪日|深日|🇯🇵|Japan|广新|新加坡|SG|坡|狮城|🇸🇬|Singapore|广韩|韩国|韓國|KR|首尔|春川|🇰🇷|Korea|广美|US|美国|🇺🇸|United States|美洲|纽约|波特兰|达拉斯|俄勒冈|凤凰城|费利蒙|洛杉矶|圣何塞|圣克拉拉|西雅图|芝加哥|加拿大|CA|Canada|🇨🇦|温哥华|多伦多|蒙特利尔|流量|到期|重置|剩余|时间|官网|订阅)).*?(欧洲|EU|德国|DE|Germany|法兰克福|Frankfurt|柏林|Berlin|法国|FR|France|巴黎|Paris|英国|UK|United Kingdom|伦敦|London|英|🇬🇧|意大利|IT|Italy|罗马|Rome|米兰|Milan|西班牙|ES|Spain|马德里|Madrid|巴塞罗那|Barcelona|荷兰|NL|Netherlands|阿姆斯特丹|Amsterdam|瑞士|CH|Switzerland|苏黎世|Zurich|日内瓦|Geneva|奥地利|AT|Austria|维也纳|Vienna|比利时|BE|Belgium|布鲁塞尔|Brussels|瑞典|SE|Sweden|斯德哥尔摩|Stockholm|挪威|NO|Norway|奥斯陆|Oslo|芬兰|FI|Finland|赫尔辛基|Helsinki|丹麦|DK|Denmark|哥本哈根|Copenhagen|波兰|PL|Poland|华沙|Warsaw|爱尔兰|IE|Ireland|都柏林|Dublin|葡萄牙|PT|Portugal|里斯本|Lisbon|希腊|GR|Greece|雅典|Athens|俄罗斯|RU|Russia|莫斯科|Moscow|圣彼得堡|St. Petersburg|土耳其|TR|Turkey|Türkiye|伊斯坦布尔|Istanbul|🇹🇷|乌克兰|UA|Ukraine|基辅|Kyiv|捷克|CZ|Czechia|布拉格|Prague|匈牙利|HU|Hungary|布达佩斯|Budapest|罗马尼亚|RO|Romania|布加勒斯特|Bucharest|保加利亚|BG|Bulgaria|塞尔维亚|RS|Serbia|克罗地亚|HR|Croatia|波黑|BA|Bosnia|斯洛伐克|SK|Slovakia|斯洛文尼亚|SI|Slovenia|立陶宛|LT|Lithuania|拉脱维亚|LV|Latvia|爱沙尼亚|EE|Estonia|冰岛|IS|Iceland|卢森堡|LU|Luxembourg|马耳他|MT|Malta|塞浦路斯|CY|Cyprus|阿尔巴尼亚|AL|Albania|白俄罗斯|BY|Belarus|摩尔多瓦|MD|Moldova|北马其顿|MK|North Macedonia|黑山|ME|Montenegro|科索沃|XK|Kosovo|安道尔|AD|Andorra|列支敦士登|LI|Liechtenstein|摩纳哥|MC|Monaco|圣马力诺|SM|San Marino|梵蒂冈|VA|Vatican|🇦🇱|🇦🇩|🇦🇹|🇧🇾|🇧🇪|🇧🇦|🇧🇬|🇭🇷|🇨🇾|🇨🇿|🇩🇰|🇪🇪|🇫🇮|🇫🇷|🇩🇪|🇬🇷|🇭🇺|🇮🇸|🇮🇪|🇮🇹|🇽🇰|🇱🇻|🇱🇮|🇱🇹|🇱🇺|🇲🇹|🇲🇩|🇲🇨|🇲🇪|🇳🇱|🇲🇰|🇳🇴|🇵🇱|🇵🇹|🇷🇴|🇷🇺|🇸🇲|🇷🇸|🇸🇰|🇸🇮|🇪🇸|🇸🇪|🇨🇭|🇺🇦|🇬🇧|🇻🇦).*$
+
+# 其他组过滤器: 不能包含任何已分类的区域关键词和元信息关键词
+filter_for_other: &FILTER_FOR_OTHER >-
+  (?i)^((?!(直连|拒绝|流量|到期|重置|剩余|时间|官网|订阅|广港|香港|HK|Hong Kong|🇭🇰|HongKong|广台|台湾|台灣|TW|Tai Wan|🇹🇼|TaiWan|Taiwan|广日|日本|JP|川日|东京|大阪|泉日|埼玉|沪日|深日|🇯🇵|Japan|广新|新加坡|SG|坡|狮城|🇸🇬|Singapore|广韩|韩国|韓國|KR|首尔|春川|🇰🇷|Korea|广美|US|美国|🇺🇸|United States|美洲|纽约|波特兰|达拉斯|俄勒冈|凤凰城|费利蒙|洛杉矶|圣何塞|圣克拉拉|西雅图|芝加哥|加拿大|CA|Canada|🇨🇦|温哥华|多伦多|蒙特利尔|流量|到期|重置|剩余|时间|官网|订阅|欧洲|EU|德国|DE|Germany|法兰克福|Frankfurt|柏林|Berlin|法国|FR|France|巴黎|Paris|英国|UK|United Kingdom|伦敦|London|英|🇬🇧|意大利|IT|Italy|罗马|Rome|米兰|Milan|西班牙|ES|Spain|马德里|Madrid|巴塞罗那|Barcelona|荷兰|NL|Netherlands|阿姆斯特丹|Amsterdam|瑞士|CH|Switzerland|苏黎世|Zurich|日内瓦|Geneva|奥地利|AT|Austria|维也纳|Vienna|比利时|BE|Belgium|布鲁塞尔|Brussels|瑞典|SE|Sweden|斯德哥尔摩|Stockholm|挪威|NO|Norway|奥斯陆|Oslo|芬兰|FI|Finland|赫尔辛基|Helsinki|丹麦|DK|Denmark|哥本哈根|Copenhagen|波兰|PL|Poland|华沙|Warsaw|爱尔兰|IE|Ireland|都Dublin|葡萄牙|PT|Portugal|里斯本|Lisbon|希腊|GR|Greece|雅典|Athens|俄罗斯|RU|Russia|莫斯科|Moscow|圣彼得堡|St. Petersburg|土耳其|TR|Turkey|Türkiye|伊斯坦布尔|Istanbul|🇹🇷|乌克兰|UA|Ukraine|基辅|Kyiv|捷克|CZ|Czechia|布拉格|Prague|匈牙利|HU|Hungary|布达佩斯|Budapest|罗马尼亚|RO|Romania|布加勒斯特|Bucharest|保加利亚|BG|Bulgaria|塞尔维亚|RS|Serbia|克罗地亚|HR|Croatia|波黑|BA|Bosnia|斯洛伐克|SK|Slovakia|斯洛文尼亚|SI|Slovenia|立陶宛|LT|Lithuania|拉脱维亚|LV|Latvia|爱沙尼亚|EE|Estonia|冰岛|IS|Iceland|卢森堡|LU|Luxembourg|马耳他|MT|Malta|塞浦路斯|CY|Cyprus|阿尔巴尼亚|AL|Albania|白俄罗斯|BY|Belarus|摩尔多瓦|MD|Moldova|北马其顿|MK|North Macedonia|黑山|ME|Montenegro|科索沃|XK|Kosovo|安道尔|AD|Andorra|列支敦士登|LI|Liechtenstein|摩纳哥|MC|Monaco|圣马力诺|SM|San Marino|梵蒂冈|VA|Vatican|🇦🇱|🇦🇩|🇦🇹|🇧🇾|🇧🇪|🇧🇦|🇧🇬|🇭🇷|🇨🇾|🇨🇿|🇩🇰|🇪🇪|🇫🇮|🇫🇷|🇩🇪|🇬🇷|🇭🇺|🇮🇸|🇮🇪|🇮🇹|🇽🇰|🇱🇻|🇱🇮|🇱🇹|🇱🇺|🇲🇹|🇲🇩|🇲🇨|🇲🇪|🇳🇱|🇲🇰|🇳🇴|🇵🇱|🇵🇹|🇷🇴|🇷🇺|🇸🇲|🇷🇸|🇸🇰|🇸🇮|🇪🇸|🇸🇪|🇨🇭|🇺🇦|🇬🇧|🇻🇦)).)*$
+
+
+proxy-groups:
+# 模板
+#  - {name: , type: fallback, interval: 300, lazy: false, proxies: []}
+#  - {name: , type: select, include-all: true, filter: ""}
+#  - {name: , type: url-test, include-all: true, tolerance: 50, interval: 300, filter: ""}
+### proxies:  # 故障转移顺序：优先使用"香港-手动"中手动选择的节点，如果节点失效，则使用"香港-自动"中自动测速选择的节点
+# 模板
+# proxies: [直连, 所有-手动, 所有-自动, 香港-故转, 台湾-故转, 日本-故转, 新加坡-故转, 韩国-故转, 美加-故转, 欧洲-故转, 其他地区-故转, 拒绝]
+#  - {name: 🚀 默认代理, type: select, proxies: [🔯 香港故转, 🔯 日本故转, 🔯 狮城故转, 🔯 美加故转, 直连]}
+# 原来的专用业务分流组，使用一个default锚点，导致所有节点组订阅组的第一个都是"直连"，第一次导入需要手动修改每个策略，而一些特定域名如ChatGPT，能用的域名是相对固定的
+
+# 地区节点分组定义
+# 新加坡/台湾组
+  - {name: 新加坡-故转, type: fallback, interval: 300, lazy: false, proxies: [新加坡-手动, 新加坡-自动, 自选故转-新港台, 自选故转-美日韩]}
+  - {name: 台湾-故转, type: fallback, interval: 300, lazy: false, proxies: [台湾-手动, 台湾-自动, 自选故转-新港台, 自选故转-美日韩]}
+  - {name: 新加坡-手动, type: select, include-all: true, filter: "(?=.*(广新|新加坡|SG|坡|狮城|🇸🇬|Singapore)).*$"}
+  - {name: 台湾-手动, type: select, include-all: true, filter: "(?=.*(广台|台湾|台灣|TW|Tai Wan|🇹🇼|🇨🇳|TaiWan|Taiwan)).*$"}
+  - {name: 新加坡-自动, type: url-test, include-all: true, tolerance: 50, interval: 300, filter: "(?=.*(广新|新加坡|SG|坡|狮城|🇸🇬|Singapore)).*$"}
+  - {name: 台湾-自动, type: url-test, include-all: true, tolerance: 50, interval: 300, filter: "(?=.*(广台|台湾|台灣|TW|Tai Wan|🇹🇼|🇨🇳|TaiWan|Taiwan)).*$"}
+
+# 香港组/美加组
+  - {name: 香港-故转, type: fallback, interval: 300, lazy: false, proxies: [香港-手动, 香港-自动, 自选故转-新港台, 自选故转-美日韩]}
+  - {name: 美加-故转, type: fallback, interval: 300, lazy: false, proxies: [美加-手动, 美加-自动, 自选故转-新港台, 自选故转-美日韩]}
+  - {name: 香港-手动, type: select, include-all: true, filter: "(?=.*(广港|香港|HK|Hong Kong|🇭🇰|HongKong)).*$"}
+  - {name: 美加-手动, type: select, include-all: true, filter: "(?i)(?=.*(广美|US|美国|纽约|波特兰|达拉斯|俄勒|凤凰城|费利蒙|洛杉|圣何塞|圣克拉|西雅|芝加|🇺🇸|United States|加拿大|Canada|渥太华|温哥华|卡尔加里|🇨🇦)).*$"}
+  - {name: 香港-自动, type: url-test, include-all: true, tolerance: 50, interval: 300, filter: "(?=.*(广港|香港|HK|Hong Kong|🇭🇰|HongKong)).*$"}
+  - {name: 美加-自动, type: url-test, include-all: true, tolerance: 50, interval: 300, filter: "(?i)(?=.*(广美|US|美国|纽约|波特兰|达拉斯|俄勒|凤凰城|费利蒙|洛杉|圣何塞|圣克拉|西雅|芝加|🇺🇸|United States|加拿大|Canada|渥太华|温哥华|卡尔加里|🇨🇦)).*$"}
+
+# 日本组/韩国组
+  - {name: 日本-故转, type: fallback, interval: 300, lazy: false, proxies: [日本-手动, 日本-自动, 自选故转-新港台, 自选故转-美日韩]}
+  - {name: 韩国-故转, type: fallback, interval: 300, lazy: false, proxies: [韩国-手动, 韩国-自动, 自选故转-新港台, 自选故转-美日韩]}
+  - {name: 日本-手动, type: select, include-all: true, filter: "(?=.*(广日|日本|JP|川日|东京|大阪|泉日|埼玉|沪日|深日|🇯🇵|Japan)).*$"}
+  - {name: 韩国-手动, type: select, include-all: true, filter: "(?=.*(广韩|韩国|韓國|KR|首尔|春川|🇰🇷|Korea)).*$"}
+  - {name: 日本-自动, type: url-test, include-all: true, tolerance: 50, interval: 300, filter: "(?=.*(广日|日本|JP|川日|东京|大阪|泉日|埼玉|沪日|深日|🇯🇵|Japan)).*$"}
+  - {name: 韩国-自动, type: url-test, include-all: true, tolerance: 50, interval: 300, filter: "(?=.*(广韩|韩国|韓國|KR|首尔|春川|🇰🇷|Korea)).*$"}
+
+# 欧洲组/其他组
+  - {name: 欧洲-故转, type: fallback, interval: 300, lazy: false, proxies: [欧洲-手动, 欧洲-自动, 自选故转-新港台, 自选故转-美日韩]}
+  - {name: 其他地区-故转, type: fallback, interval: 300, lazy: false, proxies: [其他地区-手动, 其他地区-自动, 自选故转-新港台, 自选故转-美日韩]}
+  - {name: 欧洲-手动, type: select, include-all: true, filter: *FILTER_FOR_EUROPE}  # 引用欧洲过滤器锚点
+  - {name: 其他地区-手动, type: select, include-all: true, filter: *FILTER_FOR_OTHER}   # 引用其他过滤器锚点
+  - {name: 欧洲-自动, type: url-test, include-all: true, tolerance: 50, interval: 300, filter: *FILTER_FOR_EUROPE}  # 引用欧洲过滤器锚点
+  - {name: 其他地区-自动, type: url-test, include-all: true, tolerance: 50, interval: 300, filter: *FILTER_FOR_OTHER}   # 引用其他过滤器锚点
+
+# 英国组
+# 已归入"欧洲"策略组
+#  - {name: 英国-故转, type: fallback, interval: 300, lazy: false, proxies: [英国-手动, 英国-自动, 自选故转-新港台, 自选故转-美日韩]}
+#  - {name: 英国-手动, type: select, include-all: true, filter: "(?=.*(英国|英|伦敦|UK|United Kingdom|🇬🇧|London)).*$"}
+#  - {name: 英国-自动, type: url-test, include-all: true, tolerance: 50, interval: 300, filter: "(?=.*(英国|英|伦敦|UK|United Kingdom|🇬🇧|London)).*$"}
+
+# 专业业务分流组（自定义规则）
+  - {name: 国内, type: select, proxies: [直连, 所有-手动, 所有-自动, 新加坡-故转, 台湾-故转, 香港-故转, 美加-故转, 日本-故转, 韩国-故转, 欧洲-故转, 其他地区-故转, 拒绝]}
+  - {name: 国外, type: fallback, proxies: [新加坡-故转, 台湾-故转, 香港-故转, 美加-故转, 日本-故转, 韩国-故转, 欧洲-故转, 其他地区-故转, 所有-手动, 所有-自动, 拒绝]}
+# Social
+  - {name: BiliBili, type: select, proxies: [直连, 所有-手动, 所有-自动, 新加坡-故转, 台湾-故转, 香港-故转, 美加-故转, 日本-故转, 韩国-故转, 欧洲-故转, 其他地区-故转, 拒绝]}
+  - {name: GitHub, type: fallback, proxies: [新加坡-故转, 台湾-故转, 香港-故转, 美加-故转, 日本-故转, 韩国-故转, 欧洲-故转, 其他地区-故转, 所有-手动, 所有-自动, 拒绝]}
+  - {name: YouTube, type: fallback, proxies: [新加坡-故转, 台湾-故转, 香港-故转, 美加-故转, 日本-故转, 韩国-故转, 欧洲-故转, 其他地区-故转, 所有-手动, 所有-自动, 拒绝]}
+  - {name: Twitter(X), type: fallback, proxies: [新加坡-故转, 台湾-故转, 香港-故转, 美加-故转, 日本-故转, 韩国-故转, 欧洲-故转, 其他地区-故转, 拒绝]}
+  - {name: Google, type: fallback, proxies: [新加坡-故转, 台湾-故转, 香港-故转, 美加-故转, 日本-故转, 韩国-故转, 欧洲-故转, 其他地区-故转, 所有-手动, 所有-自动, 拒绝]}
+  - {name: Microsoft, type: fallback, proxies: [新加坡-故转, 台湾-故转, 香港-故转, 美加-故转, 日本-故转, 韩国-故转, 欧洲-故转, 其他地区-故转, 所有-手动, 所有-自动, 拒绝]}
+  - {name: Telegram, type: fallback, proxies: [新加坡-故转, 台湾-故转, 香港-故转, 美加-故转, 日本-故转, 韩国-故转, 欧洲-故转, 其他地区-故转, 所有-手动, 所有-自动, 拒绝]}
+  - {name: Apple国内, type: select, proxies: [直连, 所有-手动, 所有-自动, 新加坡-故转, 台湾-故转, 香港-故转, 美加-故转, 日本-故转, 韩国-故转, 欧洲-故转, 其他地区-故转, 拒绝]}
+  - {name: Apple国外, type: select, proxies: [新加坡-故转, 台湾-故转, 香港-故转, 美加-故转, 日本-故转, 韩国-故转, 欧洲-故转, 其他地区-故转, 所有-手动, 所有-自动, 拒绝]}
+  - {name: Spotify, type: fallback, proxies: [新加坡-故转, 台湾-故转, 香港-故转, 美加-故转, 日本-故转, 韩国-故转, 欧洲-故转, 其他地区-故转, 拒绝]}
+  - {name: Reddit, type: fallback, proxies: [新加坡-故转, 台湾-故转, 香港-故转, 美加-故转, 日本-故转, 韩国-故转, 欧洲-故转, 其他地区-故转, 所有-手动, 所有-自动, 拒绝]}
+  - {name: Facebook, type: fallback, proxies: [台湾-故转, 新加坡-故转, 香港-故转, 美加-故转, 日本-故转, 韩国-故转, 欧洲-故转, 其他地区-故转, 所有-手动, 所有-自动, 拒绝]}
+  - {name: Netflix, type: fallback, proxies: [台湾-故转, 新加坡-故转, 香港-故转, 美加-故转, 日本-故转, 韩国-故转, 欧洲-故转, 其他地区-故转, 所有-手动, 所有-自动, 拒绝]}
+# 游戏
+  - {name: Nvidia, type: select, proxies: [直连, 所有-手动, 所有-自动, 新加坡-故转, 台湾-故转, 香港-故转, 美加-故转, 日本-故转, 韩国-故转, 欧洲-故转, 其他地区-故转, 拒绝]}
+### 显卡驱动更新等服务，优先直连，避免因代理导致下载失败
+  - {name: Steam, type: select, proxies: [直连, 所有-手动, 所有-自动, 新加坡-故转, 台湾-故转, 香港-故转, 美加-故转, 日本-故转, 韩国-故转, 欧洲-故转, 其他地区-故转, 拒绝]}
+  - {name: Games, type: select, proxies: [直连, 所有-手动, 所有-自动, 新加坡-故转, 台湾-故转, 香港-故转, 美加-故转, 日本-故转, 韩国-故转, 欧洲-故转, 其他地区-故转, 拒绝]}
+# AI
+  - {name: ChatGPT, type: select, proxies: [新加坡-故转, 台湾-故转, 香港-故转, 美加-故转, 日本-故转, 韩国-故转, 欧洲-故转, 其他地区-故转, 所有-手动, 所有-自动, 拒绝]}
+  - {name: Gemini, type: select, proxies: [新加坡-故转, 台湾-故转, 香港-故转, 美加-故转, 日本-故转, 韩国-故转, 欧洲-故转, 其他地区-故转, 所有-手动, 所有-自动, 拒绝]}
+  - {name: Claude, type: select, proxies: [新加坡-故转, 台湾-故转, 香港-故转, 美加-故转, 日本-故转, 韩国-故转, 欧洲-故转, 其他地区-故转, 所有-手动, 所有-自动, 拒绝]}
+  - {name: Perplexity, type: select, proxies: [新加坡-故转, 台湾-故转, 香港-故转, 美加-故转, 日本-故转, 韩国-故转, 欧洲-故转, 其他地区-故转, 所有-手动, 所有-自动, 拒绝]}
+  - {name: Grok, type: select, proxies: [新加坡-故转, 台湾-故转, 香港-故转, 美加-故转, 日本-故转, 韩国-故转, 欧洲-故转, 其他地区-故转, 所有-手动, 所有-自动, 拒绝]}
+  - {name: Copilot, type: select, proxies: [新加坡-故转, 台湾-故转, 香港-故转, 美加-故转, 日本-故转, 韩国-故转, 欧洲-故转, 其他地区-故转, 所有-手动, 所有-自动, 拒绝]}
+  - {name: Meta AI, type: select, proxies: [新加坡-故转, 台湾-故转, 香港-故转, 美加-故转, 日本-故转, 韩国-故转, 欧洲-故转, 其他地区-故转, 所有-手动, 所有-自动, 拒绝]}
+# 其他
+  - {name: TikTok, type: fallback, proxies: [台湾-故转, 新加坡-故转, 香港-故转, 美加-故转, 日本-故转, 韩国-故转, 欧洲-故转, 其他地区-故转, 所有-手动, 所有-自动, 拒绝]}
+  - {name: 流媒体, type: fallback, proxies: [台湾-故转, 新加坡-故转, 香港-故转, 美加-故转, 日本-故转, 韩国-故转, 欧洲-故转, 其他地区-故转, 所有-手动, 所有-自动, 拒绝]}
+  - {name: WhatsApp, type: fallback, proxies: [台湾-故转, 新加坡-故转, 香港-故转, 美加-故转, 日本-故转, 韩国-故转, 欧洲-故转, 其他地区-故转, 所有-手动, 所有-自动, 拒绝]}
+  - {name: Amazon, type: fallback, proxies: [直连, 所有-手动, 所有-自动, 新加坡-故转, 台湾-故转, 香港-故转, 美加-故转, 日本-故转, 韩国-故转, 欧洲-故转, 其他地区-故转, 拒绝]}
+  - {name: Crypto, type: select, proxies: [台湾-故转, 新加坡-故转, 香港-故转, 美加-故转, 日本-故转, 韩国-故转, 欧洲-故转, 其他地区-故转, 所有-手动, 所有-自动, 拒绝]}
+  - {name: Block, type: select, proxies: [拒绝, 新加坡-故转, 台湾-故转, 香港-故转, 美加-故转, 日本-故转, 韩国-故转, 欧洲-故转, 其他地区-故转, 所有-手动, 所有-自动]}
+### 主要是Adobe相关的域名，防止Photoshop软件中的弹窗
+### 当前安装的是断网版Adobe软件，可能不需要此分流组
+
+  - {name: 所有-手动, type: select, include-all: true, filter: "^((?!(直连|拒绝)).)*$"}
+  - {name: 所有-自动, type: url-test, include-all: true, tolerance: 50, interval: 300, filter: "^((?!(直连|拒绝)).)*$"}
+  # include-all: true  # 告诉策略组，将proxy-providers里所有节点都作为候选
+  # filter: "^((?!(直连|拒绝)).)*$"}  过滤所有直连和拒绝节点
+  - {name: Test, type: select, proxies: [台湾-故转, 新加坡-故转, 香港-故转, 美加-故转, 日本-故转, 韩国-故转, 欧洲-故转, 其他地区-故转, 所有-手动, 所有-自动, 拒绝]}
+
+  - {name: 自选故转, type: fallback, interval: 300, lazy: false, proxies: [自选故转-新港台, 自选故转-美日韩]}
+  - {name: 自选故转-新港台, type: url-test, include-all: true, tolerance: 50, interval: 300, filter: "(?=.*(广新|新加坡|SG|坡|狮城|🇸🇬|Singapore|广台|台湾|台灣|TW|Tai Wan|🇹🇼|🇨🇳|TaiWan|Taiwan|广港|香港|HK|Hong Kong|🇭🇰|HongKong)).*$"}
+  - {name: 自选故转-美日韩, type: url-test, include-all: true, tolerance: 50, interval: 300, filter: "(?=.*(广日|日本|JP|川日|东京|大阪|泉日|埼玉|沪日|深日|🇯🇵|Japan|广韩|韩国|韓國|KR|首尔|春川|🇰🇷|Korea|广美|US|美国|纽约|波特兰|达拉斯|俄勒|凤凰城|费利蒙|洛杉|圣何塞|圣克拉|西雅|芝加|🇺🇸|United States|加拿大|Canada|渥太华|温哥华|卡尔加里|🇨🇦)).*$"}
+
+# ========================
+# 规则引擎（rules）
+# ========================
+rules:
+  - RULE-SET,TEST / Domain,Test
+  # 如果请求域名在 TEST / Domain 这个规则集里，那么请求就交给 Test 这个策略组处理
+  - RULE-SET,Block / Domain,Block
+  - RULE-SET,ChatGPT / Domain,ChatGPT
+  - RULE-SET,Twitter / Domain,Twitter(X)
+  - RULE-SET,Claude / Domain,Claude
+  - RULE-SET,Meta AI / Domain,Meta AI
+  - RULE-SET,Perplexity / Domain,Perplexity
+  - RULE-SET,Copilot / Domain,Copilot
+  - RULE-SET,Gemini / Domain,Gemini
+  - RULE-SET,Groq / Domain,国外
+  - RULE-SET,Grok / Domain,Grok
+  - RULE-SET,Reddit / Domain,Reddit
+  - RULE-SET,GitHub / Domain,GitHub
+  - RULE-SET,Telegram / Domain,Telegram
+  - RULE-SET,Telegram / IP,Telegram
+  - RULE-SET,WhatsApp / Domain,WhatsApp
+  - RULE-SET,Facebook / Domain,Facebook
+  - RULE-SET,Apple / Domain,Apple国外
+  - RULE-SET,Apple-CN / Domain,Apple国内
+  - RULE-SET,Apple-Custome / Domain,Apple国外
+  - RULE-SET,Microsoft / Domain,Microsoft
+  - RULE-SET,OKX / Domain,Crypto
+  - RULE-SET,Bybit / Domain,Crypto
+  - RULE-SET,Binance / Domain,Crypto
+  - RULE-SET,BiliBili / Domain,BiliBili
+  - RULE-SET,Youtube / Domain,YouTube
+  - RULE-SET,TikTok / Domain,TikTok
+  - RULE-SET,Netflix / Domain,Netflix
+  - RULE-SET,Netflix / IP,Netflix,no-resolve
+  - RULE-SET,Disney / Domain,流媒体
+  - RULE-SET,Amazon / Domain,Amazon
+  - RULE-SET,Crunchyroll / Domain,流媒体
+  - RULE-SET,Popcorn / Domain,流媒体
+  - RULE-SET,HBO / Domain,流媒体
+  - RULE-SET,Spotify / Domain,Spotify
+  - RULE-SET,Steam / Domain,Steam
+  - RULE-SET,Epic / Domain,Games
+  - RULE-SET,EA / Domain,Games
+  - RULE-SET,Blizzard / Domain,Games
+  - RULE-SET,UBI / Domain,Games
+  - RULE-SET,PlayStation / Domain,Games
+  - RULE-SET,Nintend / Domain,Games
+  - RULE-SET,Google / Domain,Google
+  - RULE-SET,Google / IP,Google,no-resolve
+  - RULE-SET,Nvidia / Domain,Nvidia 
+  - RULE-SET,Telegram / IP,国外
+  - RULE-SET,Telegram / Domain,国外
+  - RULE-SET,Proxy / Domain,国外
+  - RULE-SET,Globe / Domain,国外
+  - RULE-SET,Direct / Domain,国内
+  - RULE-SET,China / Domain,国内
+  - RULE-SET,China / IP,国内,no-resolve
+  - RULE-SET,Private / Domain,国内
+  - MATCH,自选故转
+# ========================
+# 规则集提供者
+# ========================
+rule-anchor:
+  ip: &ip {type: http, interval: 86400, behavior: ipcidr, format: mrs}
+  domain: &domain {type: http, interval: 86400, behavior: domain, format: mrs}
+  class: &class {type: http, interval: 86400, behavior: classical, format: text}
+
+rule-providers:
+  TEST / Domain: {<<: *class, url: "https://gh-proxy.com/raw.githubusercontent.com/liandu2024/clash/refs/heads/main/list/Check.list"}
+  ChatGPT / Domain: {<<: *domain, url: "https://gh-proxy.com/github.com/metacubex/meta-rules-dat/raw/refs/heads/meta/geo/geosite/openai.mrs"}
+  Claude / Domain: {<<: *class, url: "https://gh-proxy.com/raw.githubusercontent.com/blackmatrix7/ios_rule_script/refs/heads/master/rule/Clash/Claude/Claude.list"}
+  Meta AI / Domain: {<<: *class, url: "https://gh-proxy.com/raw.githubusercontent.com/liandu2024/clash/refs/heads/main/list/MetaAi.list"}
+  Perplexity / Domain: {<<: *domain, url: "https://gh-proxy.com/github.com/metacubex/meta-rules-dat/raw/refs/heads/meta/geo/geosite/perplexity.mrs"}
+  Copilot / Domain: {<<: *class, url: "https://gh-proxy.com/raw.githubusercontent.com/liandu2024/clash/refs/heads/main/list/Copilot.list"}
+  Gemini / Domain: {<<: *class, url: "https://gh-proxy.com/raw.githubusercontent.com/liandu2024/clash/refs/heads/main/list/Gemini.list"}
+  GitHub / Domain: {<<: *domain, url: "https://gh-proxy.com/github.com/metacubex/meta-rules-dat/raw/refs/heads/meta/geo/geosite/github.mrs"}
+  Telegram / Domain: {<<: *domain, url: "https://gh-proxy.com/github.com/metacubex/meta-rules-dat/raw/refs/heads/meta/geo/geosite/telegram.mrs"}  
+  Telegram / IP: {<<: *ip, url: "https://gh-proxy.com/github.com/metacubex/meta-rules-dat/raw/refs/heads/meta/geo/geoip/telegram.mrs"}
+  Twitter / Domain: {<<: *domain, url: "https://gh-proxy.com/github.com/metacubex/meta-rules-dat/raw/refs/heads/meta/geo/geosite/x.mrs"}
+  WhatsApp / Domain: {<<: *class, url: "https://gh-proxy.com/raw.githubusercontent.com/blackmatrix7/ios_rule_script/refs/heads/master/rule/Clash/Whatsapp/Whatsapp.list"}
+  Facebook / Domain: {<<: *domain, url: "https://gh-proxy.com/github.com/metacubex/meta-rules-dat/raw/refs/heads/meta/geo/geosite/facebook.mrs"}
+  Amazon / Domain: {<<: *domain, url: "https://gh-proxy.com/github.com/metacubex/meta-rules-dat/raw/refs/heads/meta/geo/geosite/amazon.mrs"}
+  Apple-CN / Domain: {<<: *domain, url: "https://gh-proxy.com/github.com/metacubex/meta-rules-dat/raw/refs/heads/meta/geo/geosite/apple-cn.mrs"}
+  Apple / Domain: {<<: *domain, url: "https://gh-proxy.com/github.com/metacubex/meta-rules-dat/raw/refs/heads/meta/geo/geosite/apple.mrs"} 
+  Apple-Custome / Domain: {<<: *class, url: "https://gh-proxy.com/raw.githubusercontent.com/liandu2024/clash/refs/heads/main/list/Apple.list"}
+  Microsoft / Domain: {<<: *domain, url: "https://gh-proxy.com/github.com/metacubex/meta-rules-dat/raw/refs/heads/meta/geo/geosite/microsoft.mrs"}
+  OKX / Domain: {<<: *domain, url: "https://gh-proxy.com/github.com/metacubex/meta-rules-dat/raw/refs/heads/meta/geo/geosite/okx.mrs"}
+  Bybit / Domain: {<<: *domain, url: "https://gh-proxy.com/github.com/metacubex/meta-rules-dat/raw/refs/heads/meta/geo/geosite/bybit.mrs"}
+  Binance / Domain: {<<: *domain, url: "https://gh-proxy.com/github.com/metacubex/meta-rules-dat/raw/refs/heads/meta/geo/geosite/binance.mrs"}
+  TikTok / Domain: {<<: *domain, url: "https://gh-proxy.com/github.com/metacubex/meta-rules-dat/raw/refs/heads/meta/geo/geosite/tiktok.mrs"}
+  Netflix / Domain: {<<: *domain, url: "https://gh-proxy.com/github.com/metacubex/meta-rules-dat/raw/refs/heads/meta/geo/geosite/netflix.mrs"}
+  Netflix / IP: {<<: *ip, url: "https://gh-proxy.com/github.com/metacubex/meta-rules-dat/raw/refs/heads/meta/geo/geoip/netflix.mrs"}
+  Disney / Domain: {<<: *domain, url: "https://gh-proxy.com/github.com/metacubex/meta-rules-dat/raw/refs/heads/meta/geo/geosite/disney.mrs"}
+  HBO / Domain: {<<: *domain, url: "https://gh-proxy.com/github.com/metacubex/meta-rules-dat/raw/refs/heads/meta/geo/geosite/hbo.mrs"}
+  Spotify / Domain: {<<: *domain, url: "https://gh-proxy.com/github.com/metacubex/meta-rules-dat/raw/refs/heads/meta/geo/geosite/spotify.mrs"}
+  Steam / Domain: {<<: *domain, url: "https://gh-proxy.com/github.com/metacubex/meta-rules-dat/raw/refs/heads/meta/geo/geosite/steam.mrs"}
+  Epic / Domain: {<<: *class, url: "https://gh-proxy.com/raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Epic/Epic.list"}
+  EA / Domain: {<<: *class, url: "https://gh-proxy.com/raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/EA/EA.list"}
+  Blizzard / Domain: {<<: *class, url: "https://gh-proxy.com/raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Blizzard/Blizzard.list"}
+  UBI / Domain: {<<: *class, url: "https://gh-proxy.com/raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/UBI/UBI.list"}
+  PlayStation / Domain: {<<: *class, url: "https://gh-proxy.com/raw.githubusercontent.com/blackmatrix7/ios_rule_script/refs/heads/master/rule/Clash/PlayStation/PlayStation.list"}
+  Nintend / Domain: {<<: *class, url: "https://gh-proxy.com/raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Nintendo/Nintendo.list"}
+  Proxy / Domain: {<<: *class, url: "https://gh-proxy.com/raw.githubusercontent.com/liandu2024/clash/refs/heads/main/list/Proxy.list"}
+  Globe / Domain: {<<: *class, url: "https://gh-proxy.com/raw.githubusercontent.com/blackmatrix7/ios_rule_script/refs/heads/master/rule/Clash/Global/Global.list"} 
+  Block / Domain: {<<: *class, url: "https://gh-proxy.com/raw.githubusercontent.com/liandu2024/clash/refs/heads/main/list/Block.list"}
+  Nvidia / Domain: {<<: *class, url: "https://gh-proxy.com/raw.githubusercontent.com/blackmatrix7/ios_rule_script/refs/heads/master/rule/Clash/Nvidia/Nvidia.list"}
+  Crunchyroll / Domain: {<<: *class, url: "https://gh-proxy.com/raw.githubusercontent.com/liandu2024/clash/refs/heads/main/list/Crunchyroll.list"}
+  Reddit / Domain: {<<: *domain, url: "https://gh-proxy.com/github.com/metacubex/meta-rules-dat/raw/refs/heads/meta/geo/geosite/reddit.mrs"}
+  Groq / Domain: {<<: *domain, url: "https://gh-proxy.com/github.com/metacubex/meta-rules-dat/raw/refs/heads/meta/geo/geosite/groq.mrs"}
+  Grok / Domain: {<<: *class, url: "https://gh-proxy.com/raw.githubusercontent.com/liandu2024/clash/refs/heads/main/list/Grok.list"}
+  Popcorn / Domain: {<<: *class, url: "https://gh-proxy.com/raw.githubusercontent.com/liandu2024/clash/refs/heads/main/list/Popcorn.list"}
+  Direct / Domain: {<<: *class, url: "https://gh-proxy.com/raw.githubusercontent.com/liandu2024/clash/refs/heads/main/list/Direct.list"}
+  Private / Domain: {<<: *domain, url: "https://gh-proxy.com/github.com/metacubex/meta-rules-dat/raw/refs/heads/meta/geo/geosite/private.mrs"}
+  China / Domain: {<<: *domain, url: "https://gh-proxy.com/github.com/metacubex/meta-rules-dat/raw/refs/heads/meta/geo/geosite/cn.mrs"}
+  China / IP: {<<: *ip, url: "https://gh-proxy.com/github.com/metacubex/meta-rules-dat/raw/refs/heads/meta/geo/geoip/cn.mrs"}
+  Youtube / Domain: {<<: *domain, url: "https://gh-proxy.com/github.com/metacubex/meta-rules-dat/raw/refs/heads/meta/geo/geosite/youtube.mrs"}  
+  Google / Domain: {<<: *domain, url: "https://gh-proxy.com/github.com/metacubex/meta-rules-dat/raw/refs/heads/meta/geo/geosite/google.mrs"}  
+  Google / IP: {<<: *ip, url: "https://gh-proxy.com/github.com/metacubex/meta-rules-dat/raw/refs/heads/meta/geo/geoip/google.mrs"}
+  BiliBili / Domain: {<<: *domain,  url: "https://gh-proxy.com/github.com/metacubex/meta-rules-dat/raw/refs/heads/meta/geo/geosite/bilibili.mrs"}
+  
+#  GateFireWall / Domain: {<<: *domain, url: "https://gh-proxy.com/github.com/metacubex/meta-rules-dat/raw/refs/heads/meta/geo/geosite/gfw.mrs"}
+
+
